@@ -1,0 +1,15 @@
+{
+  "xsappname": "sap-datasphere-mcp",
+  "tenant-mode": "dedicated",
+  "description": "Login for the SAP Datasphere MCP server (principal propagation)",
+  "scopes": [],
+  "role-templates": [],
+  "oauth2-configuration": {
+    "grant-types": ["authorization_code", "refresh_token"],
+    "redirect-uris": [
+      "http://localhost:*/**"
+    ],
+    "token-validity": 3600,
+    "refresh-token-validity": 86400
+  }
+}

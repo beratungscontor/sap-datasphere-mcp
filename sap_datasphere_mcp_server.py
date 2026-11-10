@@ -8620,7 +8620,7 @@ async def _run_stdio():
 
 
 async def _run_http(host: str, port: int, path: str, auth_token: Optional[str],
-                    stateful: bool = False):
+                    stateful: bool = False, principal_validator=None):
     """Run server over Streamable HTTP (MCP 2025-03-26 transport).
 
     Defaults to stateless JSON responses: this server exposes no sampling,
@@ -8677,7 +8677,14 @@ async def _run_http(host: str, port: int, path: str, auth_token: Optional[str],
         return JSONResponse({"status": "ok", "transport": "streamable-http"})
 
     from starlette.routing import Route
-    middleware = [Middleware(BearerAuthMiddleware, token=auth_token)] if auth_token else []
+    if principal_validator is not None:
+        # Principal propagation: the bearer token is the user's XSUAA token, not a
+        # shared secret. Validate it and bind the user to the request context.
+        from auth.principal_propagation import PrincipalPropagationMiddleware
+        middleware = [Middleware(PrincipalPropagationMiddleware, validator=principal_validator,
+                               mcp_path=path)]
+    else:
+        middleware = [Middleware(BearerAuthMiddleware, token=auth_token)] if auth_token else []
     app = Starlette(
         routes=[
             Route("/health", endpoint=health),
@@ -8727,8 +8734,39 @@ async def main():
     except SystemExit:
         args = parser.parse_args([])
 
+    auth_mode = (os.getenv("DATASPHERE_AUTH_MODE") or "service").strip().lower()
+    if auth_mode not in ("service", "principal"):
+        raise ValueError("DATASPHERE_AUTH_MODE must be 'service' or 'principal'")
+    principal_validator = None
+    principal_provider = None
+    if auth_mode == "principal":
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            raise ValueError("DATASPHERE_AUTH_MODE=principal cannot be combined with USE_MOCK_DATA=true")
+        if args.transport != "http":
+            raise ValueError("DATASPHERE_AUTH_MODE=principal requires --transport http "
+                             "(the user's token arrives in the HTTP Authorization header)")
+        if args.stateful:
+            # A stateful session binds to the first caller's context; later users
+            # on that session would inherit the wrong identity.
+            raise ValueError("--stateful is not supported with DATASPHERE_AUTH_MODE=principal")
+        if args.auth_token:
+            raise ValueError("--auth-token is not used with DATASPHERE_AUTH_MODE=principal "
+                             "(the Authorization header carries the user's XSUAA token)")
+        from auth.principal_propagation import (
+            PrincipalPropagationConfig, XsuaaTokenValidator, DestinationTokenProvider)
+        pp_config = PrincipalPropagationConfig.from_env()
+        principal_validator = XsuaaTokenValidator(pp_config)
+        principal_provider = DestinationTokenProvider(pp_config)
+        logger.info("Auth mode: principal propagation (destination '%s')", pp_config.destination_name)
+
     # Initialize OAuth connector if not using mock data
-    if not DATASPHERE_CONFIG["use_mock_data"]:
+    if principal_provider is not None:
+        config = DatasphereConfig(
+            base_url=DATASPHERE_CONFIG["base_url"], client_id="", client_secret="",
+            token_url="", tenant_id=DATASPHERE_CONFIG["tenant_id"])
+        datasphere_connector = DatasphereAuthConnector(config, principal_provider=principal_provider)
+        await datasphere_connector.initialize()
+    elif not DATASPHERE_CONFIG["use_mock_data"]:
         try:
             logger.info("Initializing OAuth connection to SAP Datasphere...")
 
@@ -8767,7 +8805,8 @@ async def main():
                     "Anyone who can reach this port can invoke Datasphere tools with your OAuth creds.",
                     args.host,
                 )
-            await _run_http(args.host, args.port, args.path, args.auth_token, args.stateful)
+            await _run_http(args.host, args.port, args.path, args.auth_token, args.stateful,
+                            principal_validator=principal_validator)
         else:
             await _run_stdio()
     finally:

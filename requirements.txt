@@ -1,45 +1,15 @@
-# Model Context Protocol
+# Runtime dependencies (read by the Cloud Foundry python_buildpack and the Dockerfile).
+# Mirrors [project.dependencies] + the "http" extra in pyproject.toml.
+# Dev/test tooling lives in requirements-dev.txt.
 mcp>=2.0,<3
-
-# Core Web Framework (updated for anyio>=4.5 compatibility with MCP)
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-jinja2==3.1.2
-python-multipart==0.0.6
-
-# HTTP and API (updated for anyio>=4.5 compatibility)
-requests==2.31.0
-aiohttp==3.9.1
-
-# Security and Encryption
-cryptography==41.0.7
-
-
-
-# Data Validation and Serialization
-pydantic==2.5.0
-pydantic-settings==2.1.0
-
-# Logging and Monitoring
-loguru==0.7.2
-
-# Date and Time Handling
-python-dateutil==2.8.2
-
-# Configuration Management
-python-dotenv==1.0.0
-
-# PII masking — YAML policy files
+aiohttp>=3.9.1
+cryptography>=41.0.7
+python-dotenv>=1.0.0
 PyYAML>=6.0
 
-# Development Dependencies (optional)
-pytest==7.4.3
-pytest-asyncio==0.21.1
-pytest-cov==4.1.0
-black==23.11.0
-flake8==6.1.0
-mypy==1.7.1
+# Streamable HTTP transport
+starlette>=0.37.0
+uvicorn>=0.30.0
 
-# Documentation (optional)
-mkdocs==1.5.3
-mkdocs-material==9.4.8
+# XSUAA token validation (DATASPHERE_AUTH_MODE=principal)
+PyJWT>=2.8.0

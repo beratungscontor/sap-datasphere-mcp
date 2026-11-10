@@ -16,6 +16,8 @@ from enum import Enum
 if TYPE_CHECKING:
     from telemetry import TelemetryManager
 
+from auth.user_context import cache_scope
+
 logger = logging.getLogger(__name__)
 
 
@@ -257,8 +259,13 @@ class CacheManager:
             logger.debug(f"Cache eviction (LRU): {evicted_key}")
 
     def _make_cache_key(self, key: str, category: CacheCategory) -> str:
-        """Create cache key with category prefix"""
-        return f"{category.value}:{key}"
+        """Create cache key with category prefix.
+
+        In principal-propagation mode the key is also scoped to the calling
+        user: cached responses reflect that user's permissions and must never
+        be served to someone else. Empty scope (service mode) keeps old keys.
+        """
+        return f"{cache_scope()}{category.value}:{key}"
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""

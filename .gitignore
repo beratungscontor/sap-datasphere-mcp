@@ -94,3 +94,8 @@ datasphere-control-panel/
 # customer's data model by committing fixtures captured this way.
 # Fixtures under tests/fixtures/ must be synthetic.
 local-captures/
+
+# Cloud Foundry / MTA
+mta_archives/
+mta-ext.mtaext
+*.mtar

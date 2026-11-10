@@ -1,0 +1,13 @@
+.git/
+.github/
+.kiro/
+.claude/
+.devcontainer/
+docs/
+tests/
+mta_archives/
+.venv/
+__pycache__/
+.env
+mta-ext.mtaext
+*.md

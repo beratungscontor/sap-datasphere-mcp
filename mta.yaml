@@ -1,0 +1,63 @@
+_schema-version: "3.2"
+ID: sap-datasphere-mcp
+version: 2.0.3
+description: SAP Datasphere MCP server with principal propagation (Streamable HTTP)
+
+modules:
+  - name: sap-datasphere-mcp
+    type: python
+    path: .
+    build-parameters:
+      # No build step: the python_buildpack installs requirements.txt while staging.
+      builder: custom
+      commands: []
+      ignore:
+        - .git/
+        - .github/
+        - .kiro/
+        - .claude/
+        - .devcontainer/
+        - docs/
+        - tests/
+        - "*.md"
+        - mta_archives/
+        - .env
+        - .venv/
+        - __pycache__/
+    parameters:
+      buildpack: python_buildpack
+      memory: 512M
+      disk-quota: 1G
+      instances: 1
+      command: python sap_datasphere_mcp_server.py --transport http --host 0.0.0.0 --port $PORT
+      health-check-type: http
+      health-check-http-endpoint: /health
+    properties:
+      DATASPHERE_AUTH_MODE: principal
+      # Set your tenant here, or (recommended) override it with an extension
+      # descriptor: cf deploy <mtar> -e mta-ext.mtaext   (see mta-ext.mtaext.example)
+      DATASPHERE_BASE_URL: ""
+      DATASPHERE_TENANT_ID: ""
+      DESTINATION_NAME: Datasphere_Token_Exchange_MCP
+      PP_REQUIRED_GROUP: sac
+      PP_USER_CLAIM: user_name
+      USE_MOCK_DATA: "false"
+      LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: "1"
+    requires:
+      - name: sap-datasphere-mcp-xsuaa
+      - name: sap-datasphere-mcp-destination
+
+resources:
+  - name: sap-datasphere-mcp-xsuaa
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+
+  - name: sap-datasphere-mcp-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite

@@ -10,6 +10,8 @@ import aiohttp
 from dataclasses import dataclass
 
 from auth.oauth_handler import OAuthHandler, OAuthError
+from auth.principal_propagation import DestinationTokenProvider
+from auth.user_context import current_user
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +39,35 @@ class DatasphereAuthConnector:
     - Metadata
     """
 
-    def __init__(self, config: DatasphereConfig, oauth_handler: Optional[OAuthHandler] = None):
+    def __init__(
+        self,
+        config: DatasphereConfig,
+        oauth_handler: Optional[OAuthHandler] = None,
+        principal_provider: Optional[DestinationTokenProvider] = None,
+    ):
         """
         Initialize Datasphere connector
 
         Args:
             config: Datasphere configuration
-            oauth_handler: Optional pre-configured OAuth handler
+            oauth_handler: Optional pre-configured OAuth handler (service mode)
+            principal_provider: If set, the connector runs in principal-propagation
+                mode: every call uses the calling user's Datasphere token and the
+                technical-user (client credentials) path is never used.
         """
         self.config = config
         self.oauth_handler = oauth_handler
+        self.principal_provider = principal_provider
         self._session: Optional[aiohttp.ClientSession] = None
 
         logger.info(f"Datasphere connector initialized for {config.base_url}")
 
     async def initialize(self):
         """Initialize the connector and acquire OAuth token"""
+        if self.principal_provider:
+            logger.info("Datasphere connector initialized in principal-propagation mode")
+            return
+
         if not self.oauth_handler:
             from auth.oauth_handler import create_oauth_handler
 
@@ -76,13 +91,17 @@ class DatasphereAuthConnector:
         Raises:
             OAuthError: If token cannot be acquired
         """
-        if not self.oauth_handler:
-            raise OAuthError("OAuth handler not initialized")
-
-        token = await self.oauth_handler.get_token()
+        if self.principal_provider:
+            # Never falls back to a technical user: raises if no user is bound.
+            authorization = await self.principal_provider.get_datasphere_token()
+        else:
+            if not self.oauth_handler:
+                raise OAuthError("OAuth handler not initialized")
+            token = await self.oauth_handler.get_token()
+            authorization = f'{token.token_type} {token.access_token}'
 
         return {
-            'Authorization': f'{token.token_type} {token.access_token}',
+            'Authorization': authorization,
             'Accept': 'application/json',
             'Content-Type': 'application/json',
             'User-Agent': 'Datasphere-Metadata-Sync/2.0'  # Required for API access
@@ -98,6 +117,10 @@ class DatasphereAuthConnector:
         Raises:
             OAuthError: If token cannot be acquired
         """
+        if self.principal_provider:
+            authorization = await self.principal_provider.get_datasphere_token()
+            return authorization.split(' ', 1)[-1]
+
         if not self.oauth_handler:
             raise OAuthError("OAuth handler not initialized")
 
@@ -145,7 +168,12 @@ class DatasphereAuthConnector:
                 if response.status == 401:
                     # Token might be expired, try refreshing
                     logger.warning("Received 401, refreshing token...")
-                    await self.oauth_handler.get_token(force_refresh=True)
+                    if self.principal_provider:
+                        user = current_user.get()
+                        if user:
+                            self.principal_provider.invalidate(user)
+                    else:
+                        await self.oauth_handler.get_token(force_refresh=True)
 
                     # Retry with new token
                     headers = await self._get_headers()
@@ -387,6 +415,9 @@ class DatasphereAuthConnector:
         if self._session:
             await self._session.close()
             self._session = None
+
+        if self.principal_provider:
+            await self.principal_provider.close()
 
         if self.oauth_handler:
             await self.oauth_handler.revoke_token()

@@ -1,0 +1,25 @@
+# Plain `cf push` alternative to mta.yaml. The services must exist first:
+#   cf create-service xsuaa application sap-datasphere-mcp-xsuaa -c xs-security.json
+#   cf create-service destination lite sap-datasphere-mcp-destination
+# Tenant values are not committed; pass them with `cf set-env` (see docs/OAUTH_SETUP.md, Part 3).
+applications:
+  - name: sap-datasphere-mcp
+    buildpacks:
+      - python_buildpack
+    memory: 512M
+    disk_quota: 1G
+    instances: 1
+    command: python sap_datasphere_mcp_server.py --transport http --host 0.0.0.0 --port $PORT
+    health-check-type: http
+    health-check-http-endpoint: /health
+    services:
+      - sap-datasphere-mcp-xsuaa
+      - sap-datasphere-mcp-destination
+    env:
+      DATASPHERE_AUTH_MODE: principal
+      DESTINATION_NAME: Datasphere_Token_Exchange_MCP
+      PP_REQUIRED_GROUP: sac
+      PP_USER_CLAIM: user_name
+      USE_MOCK_DATA: "false"
+      LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: "1"

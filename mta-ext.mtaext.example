@@ -1,0 +1,11 @@
+# Copy to mta-ext.mtaext (git-ignored), fill in, then deploy with:
+#   cf deploy mta_archives/sap-datasphere-mcp_2.0.3.mtar -e mta-ext.mtaext
+_schema-version: "3.2"
+ID: sap-datasphere-mcp-ext
+extends: sap-datasphere-mcp
+
+modules:
+  - name: sap-datasphere-mcp
+    properties:
+      DATASPHERE_BASE_URL: https://<your-tenant>.<region>.hcs.cloud.sap
+      DATASPHERE_TENANT_ID: <your-tenant-id>

@@ -65,6 +65,7 @@ dependencies = [
 http = [
     "starlette>=0.37.0",
     "uvicorn>=0.30.0",
+    "PyJWT>=2.8.0",  # XSUAA token validation (DATASPHERE_AUTH_MODE=principal)
 ]
 dev = [
     "pytest>=7.4.0",
