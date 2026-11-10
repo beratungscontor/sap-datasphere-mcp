@@ -337,7 +337,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For questions about specific versions or migration assistance:
 - **GitHub Issues**: [Report bugs or request features](https://github.com/MarioDeFelipe/sap-datasphere-mcp/issues)
 - **Discussions**: [Community support and questions](https://github.com/MarioDeFelipe/sap-datasphere-mcp/discussions)
-- **Documentation**: [Complete setup guides](MCP_SETUP_GUIDE.md)
+- **Documentation**: Complete setup guides (see `docs/OAUTH_SETUP.md`)
 
 ---
 

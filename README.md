@@ -10,6 +10,15 @@
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling — with built-in config-driven PII masking so sensitive fields never reach the LLM.**
 
+## 🔐 Authentication modes
+
+| Mode | Datasphere sees | Guide |
+|---|---|---|
+| `service` (default) | one shared Technical User (OAuth client credentials) | [docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md), Part 1 |
+| `principal` | the logged-in person with their own space permissions (SAML bearer assertion via BTP Destination service, XSUAA login, OAuth discovery) | [docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md), Part 2 |
+
+Cloud Foundry deployment (from SAP Business Application Studio): [docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md), Part 3.
+
 ## 📦 Which version do I install?
 
 | Package | MCP Python SDK | Status |
@@ -38,7 +47,7 @@ pip install 'sap-datasphere-mcp<2'
 - **Every tool with inputs now has validation rules** — 12 tools shipped without any, including `query_relational_entity` and `smart_query`. Coverage is 45/45 tools, 145/150 inputs.
 - **Path identifiers are constrained and percent-encoded.** `space_id` / `asset_id` / `entity_name` / `object_id` are interpolated into URL paths; they now reject traversal-shaped values *and* pass through `quote()` as a backstop.
 - **Two silent-no-op bugs fixed** — the validator registry had drifted so two tools' rules never ran, and `allowed_values` was ignored on `STRING` rules (which also left `get_catalog_metadata.endpoint_type` unenforced).
-- A CI guard now fails if a tool ships without validation rules. See [`CHANGELOG_v1.7.0.md`](CHANGELOG_v1.7.0.md).
+- A CI guard now fails if a tool ships without validation rules.
 
 ## 🆕 What's New (v1.6.0 — partial text matching in `$filter`)
 
@@ -46,7 +55,6 @@ pip install 'sap-datasphere-mcp<2'
 - **Filtering is case-sensitive** — `'us'` does not match `'US'`. Verified against a live tenant; there is no server-side workaround, as `tolower()` is not in the supported function list.
 - **`$filter` is now validated before it is sent.** Unknown fields, non-text columns, and unsupported functions are rejected with a message the model can act on rather than an opaque `400`. Values containing a single quote are refused outright — the API has no escape form for them.
 - **Federated assets degrade gracefully** — an asset whose lineage includes non-replicated sources supports only `eq`/`and`/`or`/`()`; that failure is now mapped to a message suggesting an equality retry.
-- See [`CHANGELOG_v1.6.0.md`](CHANGELOG_v1.6.0.md) for the full tenant-probe results.
 
 ## 🆕 What's New (v1.3.0 — lean tool profile)
 
@@ -82,13 +90,13 @@ pip install sap-datasphere-mcp
 sap-datasphere-mcp
 ```
 
-**See [Getting Started Guide](GETTING_STARTED_GUIDE.md) for complete setup instructions.**
+**See [docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md) for complete setup instructions.**
 
 ---
 
 ## ✨ What's New in v1.5.0
 
-**🩹 OData V4 annotation parsing for consumption `$metadata`** — Datasphere's consumption APIs return OData 4.0, where semantic info (`Common.Label`, `Analytics.Dimension`, `Analytics.measure`, units, hierarchies) lives in `<Annotation Term="…">` elements rather than legacy `sap:*` attributes. The metadata tools now read both forms, restoring previously-empty `label`, `dimensions`, and `measures` on `get_relational_metadata` / `get_analytical_metadata` / `get_analytical_model`. The V2 attribute path is kept as a fallback for older sources. See [`CHANGELOG_v1.5.0.md`](CHANGELOG_v1.5.0.md).
+**🩹 OData V4 annotation parsing for consumption `$metadata`** — Datasphere's consumption APIs return OData 4.0, where semantic info (`Common.Label`, `Analytics.Dimension`, `Analytics.measure`, units, hierarchies) lives in `<Annotation Term="…">` elements rather than legacy `sap:*` attributes. The metadata tools now read both forms, restoring previously-empty `label`, `dimensions`, and `measures` on `get_relational_metadata` / `get_analytical_metadata` / `get_analytical_model`. The V2 attribute path is kept as a fallback for older sources.
 
 ## What's New in v1.4.0
 
@@ -203,7 +211,6 @@ curl -N -X POST http://127.0.0.1:8080/mcp/ \
 
 **Result:** **39 tools advertised by default** (49 with diagnostics enabled) with a production-ready smart query engine supporting all SQL patterns
 
-**See [CHANGELOG_v1.0.9.md](CHANGELOG_v1.0.9.md) for complete details.**
 
 ---
 
@@ -229,10 +236,9 @@ curl -N -X POST http://127.0.0.1:8080/mcp/ \
 
 | Guide | Description | Time to Read |
 |-------|-------------|--------------|
-| 📖 [**Getting Started Guide**](GETTING_STARTED_GUIDE.md) | 10-minute quick start with examples | 10 min |
+| 📖 [**Setup, Principal Propagation & Cloud Foundry**](docs/OAUTH_SETUP.md) | OAuth setup, per-user permissions, BTP deployment | 30 min |
 | 📋 [**Tools Catalog**](TOOLS_CATALOG.md) | Complete reference for all 44 tools | 30 min |
 | 🔧 [**API Reference**](API_REFERENCE.md) | Technical API docs with Python/cURL examples | 45 min |
-| 🚀 [**Deployment Guide**](DEPLOYMENT.md) | Production deployment (Docker, K8s, PyPI) | 20 min |
 | 🐛 [**Troubleshooting**](TROUBLESHOOTING.md) | Common issues and solutions | 15 min |
 
 **Quick Links:**
@@ -313,7 +319,7 @@ query_analytical_data(
 - 👥 **User Management**: Create, update, and manage database users with real API
 - 🧠 **AI Integration**: Claude Desktop, Cursor IDE, and other MCP-compatible assistants
 - 🏆 **100% Foundation & Catalog Tools**: All core discovery tools fully functional
-- 📦 **Production Ready**: Docker, Kubernetes, PyPI + npm packaging available
+- 📦 **Production Ready**: Cloud Foundry (SAP BTP) deployment via MTA
 
 ---
 
@@ -1082,46 +1088,22 @@ touched, so the LLM client can see what was withheld.
 
 ## 🚀 Production Deployment
 
-### Quick Deployment Options
+The supported production target is **SAP BTP Cloud Foundry**, deployable from SAP Business Application Studio:
 
-**Docker (Recommended)**:
 ```bash
-# Build and run
-docker build -t sap-datasphere-mcp:latest .
-docker run -d --name sap-mcp --env-file .env sap-datasphere-mcp:latest
-
-# Using Docker Compose
-docker-compose up -d
+cp mta-ext.mtaext.example mta-ext.mtaext   # set DATASPHERE_BASE_URL / DATASPHERE_TENANT_ID
+mbt build
+cf deploy mta_archives/sap-datasphere-mcp_2.0.3.mtar -e mta-ext.mtaext
 ```
 
-**PyPI Package** (Coming Soon):
-```bash
-pip install sap-datasphere-mcp
-sap-datasphere-mcp
-```
+`mta.yaml` creates and binds the `xsuaa` and `destination` services; `manifest.yml` is a plain `cf push` alternative. See **[docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md), Part 3** for the step-by-step guide.
 
-**Kubernetes**:
+**Local run:**
 ```bash
-# Create secrets
-kubectl create secret generic sap-mcp-secrets \
-  --from-literal=DATASPHERE_CLIENT_ID='...' \
-  --from-literal=DATASPHERE_CLIENT_SECRET='...'
-
-# Deploy
-kubectl apply -f k8s/deployment.yaml
-kubectl scale deployment sap-mcp-server --replicas=5
-```
-
-**Manual**:
-```bash
-git clone https://github.com/MarioDeFelipe/sap-datasphere-mcp.git
-cd sap-datasphere-mcp
 pip install -r requirements.txt
 cp .env.example .env  # Edit with your credentials
 python sap_datasphere_mcp_server.py
 ```
-
-📖 **See [DEPLOYMENT.md](DEPLOYMENT.md) for complete production deployment guide**
 
 ---
 

@@ -718,10 +718,9 @@ except Exception as e:
 
 ## 🔗 Related Documentation
 
-- **[Getting Started Guide](GETTING_STARTED_GUIDE.md)** - Quick start for new users
+- **[Setup Guide](docs/OAUTH_SETUP.md)** - OAuth, principal propagation, Cloud Foundry
 - **[Tools Catalog](TOOLS_CATALOG.md)** - All 41 tools with examples
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment
 
 ---
 

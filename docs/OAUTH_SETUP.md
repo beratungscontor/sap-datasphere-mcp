@@ -655,7 +655,6 @@ cat .env
 - [SAP Datasphere OAuth Documentation](https://help.sap.com/docs/SAP_DATASPHERE/9f804b8efa8043539289f42f372c4862/df7bbca2b73f4418881eeca39b9e0a3d.html)
 - [OAuth 2.0 Client Credentials Flow](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4)
 - [MCP Protocol Specification](https://modelcontextprotocol.io/specification/2025-03-26)
-- [Project Implementation Plan](../MCP_IMPROVEMENTS_PLAN.md)
 
 ---
 

@@ -887,7 +887,7 @@ LOG_LEVEL=DEBUG
    ```
 
 2. **Review documentation**:
-   - [GETTING_STARTED_GUIDE.md](GETTING_STARTED_GUIDE.md)
+   - [docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md)
    - [TOOLS_CATALOG.md](TOOLS_CATALOG.md)
    - [API_REFERENCE.md](API_REFERENCE.md)
 
